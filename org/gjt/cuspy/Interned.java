@@ -56,18 +56,20 @@ public class Interned {
  */  
   public Object intern( Object o) {
     Key k, v;
-    while ( null != ( k = (Key)queue.poll() ) )
-      map.remove( k);
     k = o instanceof Aware
       ? new AwareKey( (Aware)o, queue)
       : new Key( o, queue);
-    v = (Key)map.get( k);
-    if ( v != null ) {
-      Object vo = v.get();
-      if ( vo != null )
-      	return vo;
+    synchronized ( map ) {
+      while ( null != ( v = (Key)queue.poll() ) )
+	map.remove( v);
+      v = (Key)map.get( k);
+      if ( v != null ) {
+	Object vo = v.get();
+	if ( vo != null )
+      	  return vo;
+      }
+      map.put( k, k);
     }
-    map.put( k, k);
     return o;
   }
 /**
