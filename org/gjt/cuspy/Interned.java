@@ -56,9 +56,7 @@ public class Interned {
  */  
   public Object intern( Object o) {
     Key k, v;
-    k = o instanceof Aware
-      ? new AwareKey( (Aware)o, queue)
-      : new Key( o, queue);
+    k = new Key( o, queue);
     synchronized ( map ) {
       while ( null != ( v = (Key)queue.poll() ) )
 	map.remove( v);
@@ -71,6 +69,70 @@ public class Interned {
       map.put( k, k);
     }
     return o;
+  }
+/**
+ * Intern an object that implements the {@link Interned.Aware Aware} interface.
+ * The object's {@link Interned.Aware#internHashCode() internHashCode()} and
+ * {@link Interned.Aware#internEquals(Object) internEquals()} methods will be
+ * used in preference to the usual {@link Object#hashCode() hashCode()} and
+ * {@link Object#equals(Object) equals()} methods.
+ * You can force an {@link Interned.Aware Aware} object to be treated as an
+ * ordinary object for interning purposes by casting it to {@link Object} so the
+ * compiler will select the more general
+ * {@link Interned.Aware#intern(Object) intern(Object)} method instead.
+ * You might want to do that if you have objects with very expensive
+ * {@link Interned.Aware#internHashCode() internHashCode()} and
+ * {@link Interned.Aware#internEquals(Object) internEquals()} methods, you have
+ * one interning map that uses those methods, and you also want those objects
+ * to participate in a less expensive interning map as well.
+ *@param o An object implementing {@link Interned.Aware}.
+ *@return o itself if no object
+ * {@link Interned.Aware#internEquals(Object) equal} to it has been
+ * interned before; otherwise returns the earlier-interned object.
+ */  
+  public Aware intern( Aware o) {
+    Key k, v;
+    k = new AwareKey( o, queue);
+    synchronized ( map ) {
+      while ( null != ( v = (Key)queue.poll() ) )
+	map.remove( v);
+      v = (Key)map.get( k);
+      if ( v != null ) {
+	Object vo = v.get();
+	if ( vo != null )
+      	  return (Aware)vo;
+      }
+      map.put( k, k);
+    }
+    return o;
+  }
+/**
+ * Force o to be the representative of objects that equal o.
+ * Any previously-interned object that equals o will be replaced.
+ * It is the caller's responsibility to take care of any references
+ * to the old representative still held by the program.
+ *@param o The new representative
+ */
+  public void install( Object o) {
+    Key k = new Key( o, queue);
+    synchronized ( map ) {
+      map.put( k, k);
+    }
+  }
+/**
+ * Force o to be the representative of objects that equal o.
+ * The object will be treated as for
+ * {@link #intern(Interned.Aware) intern(Aware)}.
+ * Any previously-interned object that equals o will be replaced.
+ * It is the caller's responsibility to take care of any references
+ * to the old representative still held by the program.
+ *@param o The new representative
+ */
+  public void install( Aware o) {
+    Key k = new AwareKey( o, queue);
+    synchronized ( map ) {
+      map.put( k, k);
+    }
   }
 /**
  * A {@link WeakReference} whose {@link #hashCode() hashCode()} and
