@@ -45,7 +45,7 @@ import java.io.OutputStreamWriter;
  * applied superficially by the user's terminal, or by the user's choice of
  * font in a terminal emulator. Such a system may be called <EM>provincial</EM>:
  * although filled with assumptions about the correspondence of characters to
- * byte values, it is unaware of its assumptions, which are neither formally
+ * byte values, it is unaware of its assumptions, which are neither clearly
  * stated nor checked.
  *<P>
  * A Java program may be called <EM>provincial-safe</EM> if it can run on a
@@ -103,6 +103,17 @@ import java.io.OutputStreamWriter;
  * a few notable differences.
  *<UL>
  *<LI>Deprecated String and StringBuffer methods have not been included.
+ *<LI>Many methods are provided in versions that return, or accept as arguments,
+ * shorts or arrays of shorts, allowing programs to be written in terms of
+ * unsigned values 0..255 instead of (0..127,-128..-1). The choice of short
+ * rather than int exploits the fact that the Java compiler will not
+ * introduce silent conversions between char and short in either direction,
+ * so mistakes where chars are confused with unencoded bytes are less likely
+ * to go undetected.  Unfortunately, integer literal arguments will also
+ * require casts. To avoid excessive casting and improve readability,
+ * literals that will be passed as arguments to these methods can be declared
+ * as byte or short finals. (Integer literals, in range, can be
+ * <EM>assigned</EM> to byte or short fields with no cast.)
  *<LI>Methods that construct ByteStrings from chars or Strings (analogous to
  * the String methods that construct from bytes), or convert between
  * ByteStrings and chars or Strings, are provided only in the
@@ -139,7 +150,12 @@ public final class ByteString implements Serializable, Comparable {
   public ByteString() { image = new byte[0]; }
   /**Mirrors {@link String#String(char[])}.*/
   public ByteString( byte[] bytes) { image = (byte[])bytes.clone(); }
-  /**Private method using byte array without copying.*/
+  /**
+   * Shorthand for
+   * {@link #ByteString(short[],int,int) ByteString}(bytes,0,bytes.length).
+   */
+  public ByteString( short[] bytes) { this( bytes, 0, bytes.length); }
+  /**Private constructor using byte array without copying.*/
   private ByteString( byte[] b, byte[] dummy) { image = b; }
   /**Mirrors {@link String#String(String)}.*/
   public ByteString( ByteString value) { image = value.image; }
@@ -148,6 +164,23 @@ public final class ByteString implements Serializable, Comparable {
     image = new byte[length];
     try {
       System.arraycopy( bytes, offset, image, 0, length);
+    }
+    catch ( ArrayIndexOutOfBoundsException e ) {
+      throw new StringIndexOutOfBoundsException();
+    }
+  }
+  /**
+   * Mirrors {@link String#String(char[],int,int)}, but accepts an array of
+   * <CODE>short</CODE> to be converted to <CODE>byte</CODE> by casting.
+   * The conversion preserves only the low eight bits and may change the sign.
+   * This constructor is for convenience in programs that manipulate bytes as
+   * unsigned values.
+   */
+  public ByteString( short[] bytes, int offset, int length) {
+    image = new byte[length];
+    try {
+      for ( int i = 0; i < length; ++ i )
+        image [ i ] = (byte) bytes [ offset++ ];
     }
     catch ( ArrayIndexOutOfBoundsException e ) {
       throw new StringIndexOutOfBoundsException();
@@ -206,18 +239,9 @@ public final class ByteString implements Serializable, Comparable {
   private static final Interned interned = new Interned();
   /**Mirrors {@link String#equals(Object)}.*/
   public boolean equals( Object anObject) {
-    try {
-      ByteString b = (ByteString)anObject;
-      if ( b.image.length != image.length )
-      	return false;
-      int i;
-      for ( i = 0; i < image.length  &&  image[i] == b.image[i]; ++i ); //
-      if ( i >= image.length )
-      	return true;
-    }
-    catch ( ClassCastException e ) { }
-    catch ( NullPointerException e ) { }
-    return false;
+    return anObject != null
+        && anObject instanceof ByteString
+        && 0 == compareTo( anObject);
   }
   /**Mirrors {@link String#hashCode()}.*/
   public int hashCode() {
@@ -244,10 +268,12 @@ public final class ByteString implements Serializable, Comparable {
   }
   /**Mirrors {@link String#length()}.*/
   public int length() { return image.length; }
-  /**Mirrors {@link String#charAt(int)}.*/
-  public int byteAt( int index) {
+  /**Mirrors {@link String#charAt(int)}.
+   *@return an <EM>unsigned</EM> value, 0 to 255
+   */
+  public short byteAt( int index) {
     try {
-      return image[index];
+      return (short)(image[index] & 0xff);
     }
     catch ( ArrayIndexOutOfBoundsException e ) {
       throw new StringIndexOutOfBoundsException( index);
@@ -263,8 +289,33 @@ public final class ByteString implements Serializable, Comparable {
       throw new StringIndexOutOfBoundsException();
     }
   }
+  /**
+   * Mirrors {@link String#getChars(int,int,char[],int)}, but returns the
+   * bytes as <EM>unsigned</EM> values 0 to 255 in an array of
+   * <CODE>short</CODE>.
+   */
+  public void getBytes( int srcBegin, int srcEnd, short[] dst, int dstBegin) {
+    try {
+      while ( srcBegin < srcEnd )
+      	dst[dstBegin++] = (short)(image[srcBegin++] & 0xff);
+    }
+    catch ( ArrayIndexOutOfBoundsException e ) {
+      throw new StringIndexOutOfBoundsException();
+    }
+  }
   /**Mirrors {@link String#toCharArray()}.*/
   public byte[] toByteArray() { return (byte[])image.clone(); }
+  /**
+   * Mirrors {@link String#toCharArray()}, but returns the
+   * bytes as <EM>unsigned</EM> values 0 to 255 in an array of
+   * <CODE>short</CODE>.
+   */
+  public short[] toShortArray() {
+    short[] a = new short [ image.length ];
+    for ( int i = image.length - 1; i >= 0; -- i )
+      a [ i ] = (short)(image [ i ] & 0xff);
+    return a;
+  }
   /**Mirrors {@link String#getBytes(String)}.
    *@param enc <A HREF
 ="http://java.sun.com/products/jdk/1.2/docs/guide/internat/encoding.doc.html">
@@ -311,33 +362,37 @@ public final class ByteString implements Serializable, Comparable {
       0, suffix.image.length);
   }
   /**Mirrors {@link String#indexOf(int)}.*/
-  public int indexOf( byte b) {
+  public int indexOf( short b) {
+    byte signed = (byte)b;
     for ( int i = 0; i < image.length; ++i )
-      if ( image[i] == b )
+      if ( image[i] == signed )
       	return i;
     return -1;
   }
   /**Mirrors {@link String#indexOf(int,int)}.*/
-  public int indexOf( byte b, int fromIndex) {
+  public int indexOf( short b, int fromIndex) {
+    byte signed = (byte)b;
     if ( fromIndex < 0 )
       fromIndex = 0;
     for ( ; fromIndex < image.length; ++fromIndex )
-      if ( image[fromIndex] == b )
+      if ( image[fromIndex] == signed )
       	return fromIndex;
     return -1;
   }
   /**Mirrors {@link String#lastIndexOf(int)}.*/
-  public int lastIndexOf( byte b) {
+  public int lastIndexOf( short b) {
     int i;
-    for ( i = image.length - 1; i >= 0  &&  image[i] != b; --i ); //
+    byte signed = (byte)b;
+    for ( i = image.length - 1; i >= 0  &&  image[i] != signed; --i ); //
     return i;
   }
   /**Mirrors {@link String#lastIndexOf(int,int)}.*/
-  public int lastIndexOf( byte b, int fromIndex) {
+  public int lastIndexOf( short b, int fromIndex) {
     if ( fromIndex >= image.length )
       fromIndex = image.length - 1;
     else if ( fromIndex < 0 )
       return -1;
+    byte signed = (byte)b;
     for ( ; fromIndex >= 0  &&  image[fromIndex] != b; --fromIndex ); //
     return fromIndex;
   }
@@ -403,12 +458,13 @@ public final class ByteString implements Serializable, Comparable {
     return new ByteString( b, b);
   }
   /**Mirrors {@link String#replace(char,char)}.*/
-  public ByteString replace( byte oldByte, byte newByte) {
+  public ByteString replace( short oldByte, short newByte) {
     byte[] b = (byte[])image.clone();
+    byte ob = (byte)oldByte, nb = (byte)newByte;
     boolean any = false;
     for ( int i = 0 ; i < b.length ; ++i )
-      if ( b[i] == oldByte ) {
-        b[i] = newByte;
+      if ( b[i] == ob ) {
+        b[i] = nb;
         any = true;
       }
     if ( any )
@@ -428,7 +484,7 @@ public final class ByteString implements Serializable, Comparable {
    *@param destination The output stream on which the string contents should
    * be written.
    */
-  public synchronized void write( OutputStream destination)
+  public void write( OutputStream destination)
   throws IOException {
     destination.write( image);
   }
@@ -481,15 +537,20 @@ public final class ByteString implements Serializable, Comparable {
       }
       firstFree = newLength;
     }
-    /**Mirrors {@link StringBuffer#charAt(int)}.*/
-    public synchronized byte byteAt( int index) {
+    /**
+     * Mirrors {@link StringBuffer#charAt(int)}.
+     *@return an unsigned value, 0 to 255
+     */
+    public synchronized short byteAt( int index) {
       if ( firstFree <= index  ||  index < 0 )
       	throw new StringIndexOutOfBoundsException( index);
-      return buf[index];
+      return (short)(buf[index] & 0xff);
     }
     /**Mirrors {@link StringBuffer#getChars(int,int,char[],int)}.*/
     public synchronized void getBytes( int srcBegin, int srcEnd,
       byte[] dst, int dstBegin) {
+      if ( firstFree < srcEnd  ||  srcEnd < srcBegin )
+        throw new StringIndexOutOfBoundsException();
       try {
       	System.arraycopy( buf, srcBegin, dst, dstBegin, srcEnd - srcBegin);
       }
@@ -497,16 +558,32 @@ public final class ByteString implements Serializable, Comparable {
       	throw new StringIndexOutOfBoundsException();
       }
     }
+    /**
+     * Mirrors {@link StringBuffer#getChars(int,int,char[],int)}, but returns
+     * unsigned values 0 to 255 in an array of <CODE>short</CODE>.
+     */
+    public synchronized void getBytes( int srcBegin, int srcEnd,
+      short[] dst, int dstBegin) {
+      if ( firstFree < srcEnd  ||  srcEnd < srcBegin )
+        throw new StringIndexOutOfBoundsException();
+      try {
+      	for ( int i = srcBegin; i < srcEnd; ++i )
+          dst [ dstBegin++ ] = (short)(buf [ i ] & 0xff);
+      }
+      catch ( IndexOutOfBoundsException e ) {
+      	throw new StringIndexOutOfBoundsException();
+      }
+    }
     /**Mirrors {@link StringBuffer#setCharAt(int,char)}.*/
-    public synchronized void setByteAt( int index, byte b) {
+    public synchronized void setByteAt( int index, short b) {
       if ( index >= firstFree  ||  index < 0 )
       	throw new StringIndexOutOfBoundsException( index);
-      buf[index] = b;
+      buf[index] = (byte)b;
     }
     /**Mirrors {@link StringBuffer#append(char)}.*/
-    public synchronized Buffer append( byte b) {
+    public synchronized Buffer append( short b) {
       ensureCapacity( firstFree + 1);
-      buf [ firstFree++ ] = b;
+      buf [ firstFree++ ] = (byte)b;
       return this;
     }
     /**Mirrors {@link StringBuffer#append(String)}.*/
@@ -523,11 +600,29 @@ public final class ByteString implements Serializable, Comparable {
       firstFree += str.length;
       return this;
     }
+    /**Shorthand for {@link #append(short[],int,int) append}(str,0,str.length).
+     */
+    public synchronized Buffer append( short[] str) {
+      return append( str, 0, str.length);
+    }
     /**Mirrors {@link StringBuffer#append(char[],int,int)}.*/
     public synchronized Buffer append( byte[] str, int offset, int len) {
       ensureCapacity( firstFree + len);
       System.arraycopy( str, offset, buf, firstFree, len);
       firstFree += len;
+      return this;
+    }
+    /**
+     * Mirrors {@link StringBuffer#append(char[],int,int)}, but accepts an
+     * array of <CODE>short</CODE> to be converted to <CODE>byte</CODE> by
+     * casting. The conversion preserves only the low eight bits and may change
+     * the sign. This method is for convenience in programs that manipulate
+     * unsigned bytes.
+     */
+    public synchronized Buffer append( short[] str, int offset, int len) {
+      ensureCapacity( firstFree + len);
+      while ( len-- > 0 )
+        buf [ firstFree++ ] = (byte) str [ offset++ ];
       return this;
     }
     /**Mirrors {@link StringBuffer#delete(int,int)}.*/
@@ -584,6 +679,25 @@ public final class ByteString implements Serializable, Comparable {
       firstFree += len;
       return this;
     }
+    /**
+     * Mirrors {@link StringBuffer#insert(int,char[],int,int)}, but accepts an
+     * array of <CODE>short</CODE> to be converted to <CODE>byte</CODE> by
+     * casting. The conversion preserves only the low eight bits and may change
+     * the sign. This method is for convenience in programs that manipulate
+     * unsigned bytes.
+     */
+    public synchronized Buffer
+      insert( int index, short[] str, int offset, int len) {
+      if ( firstFree < index || index < 0 || offset < 0 || len < 0
+      	|| (offset + len) > str.length )
+	throw new StringIndexOutOfBoundsException();
+      ensureCapacity( firstFree + len);
+      System.arraycopy( buf, index, buf, index + len, firstFree - index);
+      firstFree += len;
+      while ( len-- > 0 )
+        buf [ index++ ] = (byte) str [ offset++ ];
+      return this;
+    }
     /**Mirrors {@link StringBuffer#insert(int,String)}.*/
     public synchronized Buffer insert( int offset, ByteString str) {
       if ( firstFree < offset  ||  offset < 0 )
@@ -606,13 +720,20 @@ public final class ByteString implements Serializable, Comparable {
       firstFree += str.length;
       return this;
     }
+    /**
+     * Shorthand for
+     * {@link #insert(int,short[],int,int) insert}(offset,str,0,str.length).
+     */
+    public synchronized Buffer insert( int offset, short[] str) {
+      return insert( offset, str, 0, str.length);
+    }
     /**Mirrors {@link StringBuffer#insert(int,char)}.*/
-    public synchronized Buffer insert( int offset, byte b) {
+    public synchronized Buffer insert( int offset, short b) {
       if ( firstFree < offset  ||  offset < 0 )
       	throw new StringIndexOutOfBoundsException( offset);
       ensureCapacity( firstFree + 1);
       System.arraycopy( buf, offset, buf, offset + 1, firstFree - offset);
-      buf[offset] = b;
+      buf[offset] = (byte)b;
       return this;
     }
     /**Mirrors {@link StringBuffer#reverse()}.*/
