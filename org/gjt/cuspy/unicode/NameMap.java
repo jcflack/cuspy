@@ -23,9 +23,9 @@ import java.util.zip.GZIPInputStream;
  * Let them select the character of interest and use this class
  * to display the official name.  Make programs easier to write and easier
  * to read, and help the Unicode names start to become familiar to programmers.
- * Includes all Unicode 2.1 names including the Chinese-Japanese-Korean unified
+ * Includes all Unicode 3.0 names including the Chinese-Japanese-Korean unified
  * ideographs and the Johab Hangul syllables.  Unicode 1.0 names are also
- * accepted where they were different.  All that adds only a 40 kB jar
+ * accepted where they were different.  All that adds only a 52 kB jar
  * to your project, so why not include it?
  *<P>
  * If your project involves a compiler or preprocessor, then of course you
@@ -90,23 +90,22 @@ public class NameMap {
     else
       url = ClassLoader.getSystemResource( "names.data"); // sop for jdk1.1
     InputStream is = url.openStream();
-    byte[] buf = new byte [ 40000 ];
+    byte[] buf = new byte [ 48688 ]; // one more than resource size
     int i = 0, j;
-    for ( ;; ) {
+    for ( ; i < buf.length ; ) {
       j = is.read( buf, i, buf.length - i);
       if ( j == -1 )
       	break;
       i += j;
     }
-    data = new byte [ i ];
-    System.arraycopy( buf, 0, data, 0, i);
-    buf = null;
-    System.gc();
+    if ( i != buf.length - 1 )
+      throw new IOException( "names.data wrong length");
+    data = buf;
   }
   
   /**
    * Find the character code for a given character name.
-   * @param name The Unicode 2.1 name of a Unicode character.
+   * @param name The Unicode 3.0 name of a Unicode character.
    * If the character had a different name in Unicode 1.0, that name is also
    * accepted, so, e.g., <CODE>FULL STOP</CODE> and <CODE>PERIOD</CODE> both
    * work. C0 control names (e.g. <CODE>LINE FEED</CODE>) are also accepted.
@@ -119,7 +118,9 @@ public class NameMap {
     if ( name.startsWith( cjkPrefix) ) {
       try {
       	int c = Integer.parseInt( name.substring( cjkPrefix.length()), 16);
-	if ( 0x4e00  <= c && c <=  0x9fff )
+	if ( 0x4e00  <= c && c <=  0x9fa5 )
+	  return c;
+	if ( 0x3400  <= c && c <=  0x4db5 )
 	  return c;
       }
       catch ( NumberFormatException e ) { }
@@ -197,8 +198,8 @@ public class NameMap {
    * @param c A character code (as an <CODE>int</CODE> to allow for addition
    * of names in the Unicode planes 1 and above).
    * @return The name of the character. If it has more than one name, the
-   * canonical Unicode 2.1 name is returned.  C0 controls (which don't have
-   * canonical Unicode 2.1 names) have their earlier names returned.
+   * canonical Unicode 3.0 name is returned.  C0 controls (which don't have
+   * canonical Unicode 3.0 names) have their earlier names returned.
    * @throws IllegalArgumentException If <EM>c</EM> is not between 0 and
    * 0x10ffff inclusive.
    * @throws NoSuchCharException If <EM>c</EM> is an undefined Unicode value.
@@ -207,7 +208,9 @@ public class NameMap {
   public String name( int c) throws NoSuchCharException {
     if ( 0  > c || c >  0x10ffff )
       throw new IllegalArgumentException( String.valueOf( c));
-    if ( 0x4e00  <= c && c <=  0x9fff )
+    if ( 0x4e00  <= c && c <=  0x9fa5 )
+      return cjkPrefix + Integer.toHexString( c).toUpperCase();
+    if ( 0x3400  <= c && c <=  0x4db5 )
       return cjkPrefix + Integer.toHexString( c).toUpperCase();
     if ( SBase   <= c && c <   Send ) {
       int SIndex = c - SBase;
