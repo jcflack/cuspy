@@ -108,6 +108,10 @@ import java.io.OutputStreamWriter;
  * ByteStrings and chars or Strings, are provided only in the
  * versions with an encoding-name parameter.
  * The versions that leave the encoding implicit have not been included.
+ * However, the static final {@link #LOCAL_ENCODING} is initialized to the
+ * platform's default encoding (even if permission to read the
+ * <CODE>file.encoding</CODE> property is denied) and can be passed as the
+ * encoding name.
  *<LI>All such methods verify that the original value is recovered by applying
  * the inverse encoding to the encoding result, and throw
  * {@link CharConversionException} otherwise.  This is a checked exception
@@ -127,6 +131,10 @@ import java.io.OutputStreamWriter;
  *@version $Id$
  */
 public final class ByteString implements Serializable, Comparable {
+  /**The name of the local platform's default encoding, even if we lack
+   * permission to read the file.encoding property.*/
+  public static final String LOCAL_ENCODING = new InputStreamReader(
+    new InputStream() { public int read() { return -1; } }).getEncoding();
   /**Construct an empty ByteString.*/
   public ByteString() { image = new byte[0]; }
   /**Mirrors {@link String#String(char[])}.*/
