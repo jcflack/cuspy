@@ -535,7 +535,7 @@ public final class ByteString implements Serializable, Comparable {
       return this;
     }
     /**Mirrors {@link StringBuffer#deleteCharAt(int)}.*/
-    public synchronized Buffer deleteCharAt( int index) {
+    public synchronized Buffer deleteByteAt( int index) {
       if ( firstFree <= index || index < 0 )
       	throw new StringIndexOutOfBoundsException( index);
       --firstFree;
