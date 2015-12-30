@@ -40,6 +40,16 @@ import java.util.zip.GZIPInputStream;
  * for a few unfamiliar characters.  If the time is a concern, you can extend
  * NameMap with a subclass that does some form of caching appropriate to your
  * application.
+ *<P>
+ * Would you like to be able to write
+ *<PRE>
+ * char c = 'CLOCKWISE INTEGRAL';
+ *</PRE>
+ * in Java?  Log on to the
+ *<A HREF="http://developer.java.sun.com/developer/">Java Developer
+ * Connection</A> and cast one, two, or all three of your Bug Votes for
+ *<A HREF="http://developer.java.sun.com/developer/bugParade/bugs/4311312.html">
+ *Request for Enhancement #4311312</A>.
  *@author <A HREF="mailto:chap@gjt.org">Chapman Flack</A>
  *@version $Id$
  */
