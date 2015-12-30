@@ -14,12 +14,12 @@ import java.util.zip.GZIPInputStream;
  * language where characters might have to be specified, don't make your
  * users thumb through the
  * <A HREF="http://charts.unicode.org/Unicode.charts/normal/Unicode.html">Unicode charts</A>
- * to find out that, e.g., \u20a8
+ * to find out that, e.g., <STRONG>\\u20a8</STRONG>
  * is the Indian currency symbol. Let them give the official name
- * <CODE>RUPEE SIGN</CODE>
+ * <STRONG>RUPEE SIGN</STRONG>
  * and let this class look it up.  Don't make a user squint at a display to
- * distinguish similar characters like <CODE>GREEK CAPITAL LETTER PI</CODE> and
- * <CODE>N-ARY PRODUCT</CODE>.
+ * distinguish similar characters like <STRONG>GREEK CAPITAL LETTER PI</STRONG>
+ * and <STRONG>N-ARY PRODUCT</STRONG>.
  * Let them select the character of interest and use this class
  * to display the official name.  Make programs easier to write and easier
  * to read, and help the Unicode names start to become familiar to programmers.
