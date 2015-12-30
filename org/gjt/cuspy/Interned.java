@@ -4,6 +4,7 @@ import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
 import java.util.HashMap;
 import java.util.WeakHashMap;
+import java.lang.System; // workaround for javadoc not finding it
 
 /**
  * A canonicalizing map. An instance of Interned provides the method
@@ -22,14 +23,20 @@ import java.util.WeakHashMap;
  * The map is similar to {@link WeakHashMap}, but a WeakHashMap
  * is concerned with allowing its <EM>keys</EM> to be garbage-collected,
  * while Interned permits garbage collection of the <EM>values</EM>.
+ *<P>
+ * Objects that will always be interned can implement {@link Interned.Aware}.
+ * Those that do can have very inexpensive {@link #equals(Object) equals()}
+ * and {@link #hashCode() hashCode()} methods whose results (when the objects
+ * are interned) will be equivalent to the real hash and equality tests
+ * (which only {@link #intern(Object) intern()} needs to use).
  *@author <A HREF="mailto:chap@gjt.org">Chapman Flack</A>
  *@version $Id$
  */
 public class Interned {
   /**Map used to implement a set by mapping object
-     {@link Key}s to themselves.*/
+     {@link Key Keys} to themselves.*/
   java.util.Map map;
-  /**Queue on which the Java runtime system enters {@link Key}s once their
+  /**Queue on which the Java runtime system enters {@link Key Keys} once their
      referents have been swept up.*/
   ReferenceQueue queue = new ReferenceQueue();
 /**
@@ -51,7 +58,9 @@ public class Interned {
     Key k, v;
     while ( null != ( k = (Key)queue.poll() ) )
       map.remove( k);
-    k = new Key( o, queue);
+    k = o instanceof Aware
+      ? new AwareKey( (Aware)o, queue)
+      : new Key( o, queue);
     v = (Key)map.get( k);
     if ( v != null ) {
       Object vo = v.get();
@@ -62,10 +71,10 @@ public class Interned {
     return o;
   }
 /**
- * A {@link WeakReference} whose {@link #hashCode()} and
- * {@link #equals(Object)} semantics are those of the referent object.
+ * A {@link WeakReference} whose {@link #hashCode() hashCode()} and
+ * {@link #equals(Object) equals()} semantics are those of the referent object.
  */  
-  private static final class Key extends WeakReference {
+  private static class Key extends WeakReference {
     /**Cached hash of referent.*/
     int hash;
 /**
@@ -80,12 +89,13 @@ public class Interned {
     }
 /**
  * The hash of the original referent (cached, so Map lookup will succeed
- * even after the reference is cleared.
+ * even after the reference is cleared).
  */
     public int hashCode() { return hash; }
 /**
  * True if <CODE>this</CODE> and <CODE>o</CODE> are the same Key, or
- * the objects they refer to are equal by the <CODE>equals()</CODE> method.
+ * the objects they refer to are equal by the
+ * {@link Object#equals(Object) equals()} method.
  * The same-key check is required so the Map lookup and removal of a cleared
  * Key will succeed.
  */
@@ -95,6 +105,73 @@ public class Interned {
       	Object ok = ((Key)o).get();
 	Object tk = get();
 	return tk.equals( ok);
+      }
+      catch ( NullPointerException e ) { }
+      catch ( ClassCastException e ) { }
+      return false;
+    }
+  }
+/**
+ * Interface for objects that are "aware" they will be interned.  Such objects
+ * have {@link #internHashCode()} and {@link #internEquals(Object)} methods
+ * that implement the "real" contract for {@link #hashCode() hashCode()} and
+ * {@link #equals(Object) equals()}, while the methods with the original
+ * names implement
+ * only the base {@link Object} semantics.
+ * That is, {@link #equals(Object) equals()} should simply return
+ * <CODE>this == other</CODE>, and {@link #hashCode() hashCode()} should
+ * just return
+ * <CODE>{@link System#identityHashCode(Object) System.identityHashCode}(this).
+ * </CODE>
+ * Once objects have been interned, those simplified methods will yield
+ * behavior equivalent to the real ones, with less computation.
+ */  
+  public static interface Aware {
+    /**The "real" hashCode.
+     *@return A value fulfilling the contract for {@link #hashCode() hashCode()}
+     * with respect to {@link #internEquals(Object)}.
+     */
+    public int internHashCode();
+    /**The "real" equality test.
+     *@param o An object
+     *@return true if and only <CODE>this</CODE> and <CODE>o</CODE> are equal
+     * in the usual sense for overriding {@link #equals(Object) equals()}
+     * methods, false otherwise.
+     */
+    public boolean internEquals( Object o);
+  }
+/**
+ * A {@link Interned.Key Key} whose referent object is
+ * {@link Interned.Aware Aware} and
+ * whose {@link #hashCode() hashCode()} and {@link #equals(Object) equals()}
+ * semantics are those of the referent object's
+ * {@link Interned.Aware#internHashCode() internHashCode()} and
+ * {@link Interned.Aware#internEquals(Object) internEquals()} methods.
+ */  
+  private static final class AwareKey extends Key {
+/**
+ * Construct an AwareKey for an object; associate the key with a queue.
+ *@param k An object to be interned.
+ *@param q {@link ReferenceQueue} on which this AwareKey should be enqueued
+ * when its referent is garbage-collected.
+ */
+    AwareKey( Aware k, ReferenceQueue q) {
+      super( k, q);
+      hash = k.internHashCode();
+    }
+/**
+ * True if <CODE>this</CODE> and <CODE>o</CODE> are the same AwareKey, or
+ * the objects they refer to are equal by the
+ * {@link Interned.Aware#internEquals(Object) internEquals()} method.
+ * The same-key check is required so the Map lookup and removal of a cleared
+ * AwareKey will succeed.
+ */
+    public boolean equals( Object o) {
+      if ( o == this ) return true;
+      try {
+      	Object ok = ((Key)o).get();
+	Aware  tk = (Aware)get();
+	return tk.internEquals( ok);
       }
       catch ( NullPointerException e ) { }
       catch ( ClassCastException e ) { }
