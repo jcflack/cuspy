@@ -1,0 +1,60 @@
+<HTML>
+<HEAD></HEAD>
+<BODY>
+org.gjt.cuspy (top level) is not so much a single package as a home for useful
+standalone classes too small to get packages of their own:<DL>
+<DT>{@Rethrown}</DT><DD>Throw a checked exception, unchecked exception, or
+error, without losing information contained in an earlier exception.<BR>
+(similar: org.gjt.jem.utils.exceptions)</DD>
+<DT>{@Interned}</DT><DD>Like String.intern() but for any object, so you can
+use <CODE>==</CODE> instead of <CODE>equals()</CODE>.</DD>
+<DT>{@ByteString}</DT><DD>For reliable general file processing or line/character based net protocols where non-Unicode platforms are involved.</DD>
+<DT>{@JarX}</DT><DD>Self-extracting jars that also safely convert extracted
+text files to the receiver's encoding and newline conventions.</DD></DL>
+If there's a common theme, it's
+to help you write secure, reliable code.
+<P>
+These classes (with any inner classes they include) may be treated as units
+of distribution; in fact, each one (will have)
+a jar file available for download (as soon as I can make that work on GJT).
+If you develop for the Java 1.2 runtime environment, you can treat these jars
+as
+<A HREF="http://java.sun.com/products/jdk/1.2/docs/guide/extensions/">
+extensions</A>: they can be placed in the <CODE>jre/lib/ext</CODE>
+directory of the runtime system if heavily used, and any that are not so
+installed can be automatically downloaded with your app.
+<P>
+Here are some more notes on the classes:
+<DL><DT>{@Rethrown}</DT><DD>API requirements sometimes call for catching an
+exception and throwing one of a different type.
+With this class you can do that and not lose
+invaluable debugging information, and the level of detail shown can be changed
+without access to the source or recompiling, so mysterious problems can be
+tracked down in the field.
+Java 1.1 or 1.2.
+</DD>
+<DT>{@Interned}</DT>
+<DD>
+Requires Java 1.2 because it uses WeakReferences to allow intern map space to
+be reclaimed when the objects are unreachable (like a WeakHashMap, but this
+is concerned with when the objects themselves are released, where WeakHashMap
+is concerned with the keys).
+</DD>
+<DT>{@ByteString}</DT>
+<DD>If you do any programming involving line/character-based network protocols,
+or general-purpose file processing and your OS isn't something like Plan9 that's
+Unicode from the ground up, <EM>please</EM> at least read the rationale
+in this class API doc, and avoid writing unreliable, unsafe code!
+Depending on your application, you may find this class convenient.
+Needs Java 1.2 because it uses Interned.
+</DD>
+</DL>
+@gjtrel $Name$
+@gjtdate $Date$
+@gjtjvm 1.2
+@gjtcat utility
+@gjtcat reliability
+@gjtcat archive
+@gjtlicense PD
+</body>
+</html>
