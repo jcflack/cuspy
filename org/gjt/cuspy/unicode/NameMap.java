@@ -13,8 +13,8 @@ import java.util.zip.GZIPInputStream;
  * standardized Unicode names.  If you provide any sort of API, tool, or
  * language where characters might have to be specified, don't make your
  * users thumb through the
- * <A HREF="http://charts.unicode.org/Unicode.charts/normal/Unicode.html>Unicode
- * charts</A> to find out that, e.g., \u20a8
+ * <A HREF="http://charts.unicode.org/Unicode.charts/normal/Unicode.html>Unicode charts</A>
+ * to find out that, e.g., \u20a8
  * is the Indian currency symbol. Let them give the official name
  * <CODE>RUPEE SIGN</CODE>
  * and let this class look it up.  Don't make a user squint at a display to
